@@ -1,0 +1,17 @@
+{
+    "files.associations": {
+        "string.h": "c",
+        "stdio.h": "c",
+        "stdlib.h": "c",
+        "deque.h": "c",
+        "type_traits": "c",
+        "hash.h": "c",
+        "binary_tree.h": "c",
+        "vector.h": "c",
+        "item.h": "c",
+        "time.h": "c",
+        "stdbool.h": "c",
+        "io.h": "c",
+        "node.h": "c"
+    }
+}
