@@ -1,8 +1,8 @@
 all:
-	gcc -Wall -g -o main *.c
+	gcc -Wall -g -o main.out *.c
 run:
-	./main
+	./main.out
 valgrind:
-	valgrind --leak-check=full ./main
+	valgrind --leak-check=full ./main.out
 clean:
-	rm -f main
+	rm -f main.out

@@ -12,6 +12,7 @@
         "time.h": "c",
         "stdbool.h": "c",
         "io.h": "c",
-        "node.h": "c"
+        "node.h": "c",
+        "bt.h": "c"
     }
 }
