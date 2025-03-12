@@ -4,56 +4,35 @@
 #include <stdbool.h>
 
 typedef struct Node Node;
+typedef struct NodeIdxTuple NodeIdxTuple;
 
 struct NodeIdxTuple {
     Node *node;
     int idx;
 };
-typedef struct NodeIdxTuple NodeIdxTuple;
 
-/*
- * Cria um novo nó
- */
 Node *node_create(int t, bool isLeaf, int nodePos);
 
-/*
- * Destroi um nó
- */
-void node_tree_destroy(Node *node, void (*key_destructor)(void *), void (*value_destructor)(void *));
+void node_destroy(Node *node);
 
-/*
- * Adiciona um valor e uma chave associada a um nó
- */
-void node_insert(Node *node, void *key, void *value, int (*key_cmp)(void *, void *));
+void disk_write(FILE *file, Node *node, int t);
+Node *disk_read(FILE *file, int nodeIdx, int t);
 
-/*
- * Procura por uma chave específica a partir de um dado nó, percorrendo todos os filhos sucessivamente
- */
-NodeIdxTuple *node_search(Node *node, void *key, int (*key_cmp)(void *, void *));
+void node_insert(Node *node, int key, int value);
 
-/*
- * Retorna a quantidade de chaves de um nó
- */
-int node_get_key_amt(Node *node);
+NodeIdxTuple *node_search(FILE *file, int t, int nodeIdx, int key);
 
-/*
- * Retorna se um nó é folha
- */
 bool is_node_leaf(Node *node);
 
-/*
- * Retorna a posição de um nó na árvore, considerando um percurso em level order
- */
+int node_get_key_amt(Node *node);
 int node_get_pos(Node *node);
+int node_get_key(Node *node, int idx);
+int node_get_val(Node *node, int idx);
+int node_get_child_pos(Node *node, int idx);
 
-/*
- * Retorna a chave de um nó
- */
-void *node_get_key(Node *node, int i);
-
-/*
- * Retorna o valor de um nó
- */
-void *node_get_value(Node *node, int i);
+void node_set_key_amt(Node *node, int amt);
+void node_set_nodePos(Node *node, int pos);
+void node_set_key_val(Node *node, int key, int val, int idx);
+void node_set_child_pos(Node *parentNode, int childNodePos, int idx);
 
 #endif

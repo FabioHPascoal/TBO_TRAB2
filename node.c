@@ -3,12 +3,12 @@
 #include "node.h"
 
 struct Node {
-    int keyAmt;
     bool isLeaf;
+    int keyAmt;
     int nodePos;
-    void **keys;
-    void **values;
-    Node **childNodes;
+    int *keys;
+    int *values;
+    int *childNodes;
 };
 
 Node *node_create(int t, bool isLeaf, int nodePos) {
@@ -19,9 +19,9 @@ Node *node_create(int t, bool isLeaf, int nodePos) {
     node->isLeaf = isLeaf;
     node->nodePos = nodePos;
 
-    node->keys = malloc(sizeof(void *) * (t - 1));
-    node->values = malloc(sizeof(void *) * (t - 1));
-    node->childNodes = calloc(t, sizeof(Node *));
+    node->keys = malloc(sizeof(int) * (t - 1));
+    node->values = malloc(sizeof(int) * (t - 1));
+    node->childNodes = malloc(sizeof(int) * t);
 
     if (!node->keys || !node->values || !node->childNodes) {
         free(node->keys);
@@ -34,22 +34,9 @@ Node *node_create(int t, bool isLeaf, int nodePos) {
     return node;
 }
 
-void node_tree_destroy(Node *node, void (*key_destructor)(void *), void (*value_destructor)(void *)) {
+void node_destroy(Node *node) {
     if (node == NULL) {
         return;
-    }
-
-    for (int i = 0; i < node->keyAmt; i++) {
-        if (key_destructor != NULL) {
-            key_destructor(node->keys[i]);
-        }
-        if (value_destructor != NULL) {
-            value_destructor(node->values[i]);
-        }
-    }
-
-    for (int i = 0; i < node->keyAmt; i++) {
-        node_tree_destroy(node->childNodes[i], key_destructor, value_destructor);
     }
 
     free(node->keys);
@@ -58,72 +45,134 @@ void node_tree_destroy(Node *node, void (*key_destructor)(void *), void (*value_
     free(node);
 }
 
-void node_insert(Node *node, void *key, void *value, int (*key_cmp)(void *, void *)) {
-    int i = node->keyAmt - 1;
+void disk_write(FILE *file, Node *node, int t) {
+    int nodeSize = sizeof(int) * (2 + (2 * (t - 1)) + t) + sizeof(bool);
+    fseek(file, node->nodePos * nodeSize, SEEK_SET);
+
+    fwrite(&node->keyAmt, sizeof(int), 1, file);
+    fwrite(&node->isLeaf, sizeof(bool), 1, file);
+    fwrite(&node->nodePos, sizeof(int), 1, file);
     
-    // Encontrar a posição correta para inserir a chave
-    while (i >= 0 && key_cmp(node->keys[i], key) > 0) {
-        node->keys[i + 1] = node->keys[i];      // Move chave para a direita
-        node->values[i + 1] = node->values[i];  // Move valor para a direita
+    fwrite(node->keys, sizeof(int), t - 1, file);
+    fwrite(node->values, sizeof(int), t - 1, file);
+    fwrite(node->childNodes, sizeof(int), t, file);
+
+    fflush(file);
+}
+
+Node *disk_read(FILE *file, int nodeIdx, int t) {
+    Node *node = node_create(t, true, nodeIdx);
+    if (!node) return NULL;
+
+    int nodeSize = sizeof(int) * (2 + (2 * (t - 1)) + t) + sizeof(bool);
+    fseek(file, nodeIdx * nodeSize, SEEK_SET);
+
+    fread(&node->keyAmt, sizeof(int), 1, file);
+    fread(&node->isLeaf, sizeof(bool), 1, file);
+    fread(&node->nodePos, sizeof(int), 1, file);
+
+    fread(node->keys, sizeof(int), t - 1, file);
+    fread(node->values, sizeof(int), t - 1, file);
+    fread(node->childNodes, sizeof(int), t, file);
+
+    return node;
+}
+
+void node_insert(Node *node, int key, int value) {
+    int i = node->keyAmt - 1;
+
+    // Find the correct position to insert the key, shifting the others to the right
+    while (i >= 0 && node->keys[i] > key) {
+        node->keys[i + 1] = node->keys[i];
+        node->values[i + 1] = node->values[i];
         i--;
     }
     
-    // Inserir na posição correta
+    // Insert key in the correct position
     node->keys[i + 1] = key;
     node->values[i + 1] = value;
     node->keyAmt++;
 }
 
-int binary_search(void **arr, void *key, int lo, int hi, int (*key_cmp)(void *, void *)) {
+int binary_search(int *keys, int key, int lo, int hi) {
     int mid;
     while (lo <= hi) {
         mid = lo + (hi - lo) / 2;
-        int cmp = key_cmp(key, arr[mid]);
-
-        if (cmp < 0)
+        if (key < keys[mid])
             hi = mid - 1;
-        else if (cmp > 0)
+        else if (key > keys[mid])
             lo = mid + 1;
         else
-            return mid;  // Encontrou a chave
+            return mid;  // Found the key
     }
-    return lo;  // Índice onde a chave deveria ser inserida
+    return lo;  // Index where the key should be
 }
 
-NodeIdxTuple *node_search(Node *node, void *key, int (*key_cmp)(void *, void *)) {
-    int i = binary_search(node->keys, key, 0, node->keyAmt -1, key_cmp);
+NodeIdxTuple *node_search(FILE *file, int t, int nodeIdx, int key) {
+    Node *node = disk_read(file, nodeIdx, t);
+    if (!node) return NULL;
 
-    if (i < node->keyAmt && key_cmp(key, node->keys[i]) == 0) {
+    // Find the index of the searched key, or the index to where it should be
+    int i = binary_search(node->keys, key, 0, node->keyAmt -1);
+
+    // The key searched is in this node
+    if ((i < node->keyAmt) && (key == node->keys[i])) {
         NodeIdxTuple *tuple = malloc(sizeof(NodeIdxTuple));
         if (!tuple) return NULL;
+
         tuple->node = node;
         tuple->idx = i;
+
         return tuple;
     }
 
+    // The searched key is not in the tree
     if (node->isLeaf) {
+        node_destroy(node);
         return NULL;
-    } else {
-        return node_search(node->childNodes[i], key, key_cmp);
     }
-}
 
-int node_get_key_amt(Node *node) {
-    return node->keyAmt;
+    // Search for the key in a child node
+    else return node_search(file, t, node->childNodes[i], key);
 }
 
 bool is_node_leaf(Node *node) {
     return node->isLeaf;
 }
 
+int node_get_key_amt(Node *node) {
+    return node->keyAmt;
+}
+
 int node_get_pos(Node *node) {
     return node->nodePos;
 }
 
-void *node_get_key(Node *node, int i) {
-    return node->keys[i];
+int node_get_key(Node *node, int idx) {
+    return node->keys[idx];
 }
 
-void *node_get_value(Node *node, int i) {
-    return node->values[i];
+int node_get_val(Node *node, int idx) {
+    return node->values[idx];
+}
+
+int node_get_child_pos(Node *node, int idx) {
+    return node->childNodes[idx];
+}
+
+void node_set_key_amt(Node *node, int amt) {
+    node->keyAmt = amt;
+}
+
+void node_set_nodePos(Node *node, int pos) {
+    node->nodePos = pos;
+}
+
+void node_set_key_val(Node *node, int key, int val, int idx) {
+    node->keys[idx] = key;
+    node->values[idx] = val;
+}
+
+void node_set_child_pos(Node *parentNode, int childNodePos, int idx) {
+    parentNode->childNodes[idx] = childNodePos;
 }

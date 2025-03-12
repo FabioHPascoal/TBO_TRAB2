@@ -6,17 +6,12 @@
 
 typedef struct BT BT;
 
-/*
- * Cria um nova árvore B
- */
-BT *bt_create(int t, int (*key_cmp)(void *, void *), 
-                     void (*key_destructor)(void *),
-                     void (*val_destructor)(void *));
-
+BT *bt_create(int t, int firstKey, int firstVal);
 void bt_destroy(BT *bt);
 
-void bt_insert(BT *bt, void *key, void *val);
+void bt_insert(BT *bt, int key, int val);
+NodeIdxTuple *bt_search(BT *bt, int key);
 
-NodeIdxTuple *bt_search(BT *bt, void *key);
+void bt_print(BT *bt);
 
 #endif
