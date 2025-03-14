@@ -21,6 +21,7 @@ Node *disk_read(FILE *file, int nodeIdx, int t);
 void node_insert(Node *node, int key, int value);
 
 NodeIdxTuple *node_search(FILE *file, int t, int nodeIdx, int key);
+int single_node_search(Node *node, int t, int key);
 
 bool is_node_leaf(Node *node);
 

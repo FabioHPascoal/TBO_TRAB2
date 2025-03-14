@@ -126,7 +126,7 @@ NodeIdxTuple *node_search(FILE *file, int t, int nodeIdx, int key) {
         return tuple;
     }
 
-    // The searched key is not in the tree
+    // Searched key is not in the tree
     if (node->isLeaf) {
         node_destroy(node);
         return NULL;
@@ -134,6 +134,11 @@ NodeIdxTuple *node_search(FILE *file, int t, int nodeIdx, int key) {
 
     // Search for the key in a child node
     else return node_search(file, t, node->childNodes[i], key);
+}
+
+int single_node_search(Node *node, int t, int key) {
+    int idx = binary_search(node->keys, key, 0, node->keyAmt -1);
+    return idx;
 }
 
 bool is_node_leaf(Node *node) {

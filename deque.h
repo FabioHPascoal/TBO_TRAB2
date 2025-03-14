@@ -4,7 +4,7 @@
 
 typedef struct Deque Deque;
 
-Deque *deque_construct();
+Deque *deque_construct(int initialSize);
 void deque_push_back(Deque *d, int item);
 void deque_push_front(Deque *d, int item);
 int deque_pop_back(Deque *d);

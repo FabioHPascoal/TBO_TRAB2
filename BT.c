@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stdbool.h>
+
 #include "BT.h"
 #include "deque.h"
 
@@ -55,63 +56,58 @@ void bt_destroy(BT *bt) {
     free(bt);
 }
 
-void bt_split_child(int t, int i, Node *nonFullNode, Node *fullNode) {
-    // Node *newNode = node_create(t, is_node_leaf(fullNode), node_get_pos(fullNode) +1);
-    // node_set_key_amt(newNode, t/2);
-
-    // // Copying second half of fullNode's contents to the new node
-    // for (int j = 0; j < t -1; j++) {
-    //     void *key = node_get_key(fullNode, j + t);
-    //     void *val = node_get_val(fullNode, j + t);
-
-    //     node_set_key_val(newNode, key, val, j);
-    // }
-
-    // // Copying second half of fullNode's children to the new node, if it has any
-    // if (!is_node_leaf(fullNode)) {
-    //     for (int j = 0; j < t; j++) {
-    //         Node *childNode = node_get_child(fullNode, j + t);
-    //         node_set_child(newNode, childNode, j);
-    //     }
-    // }
-
-    // // Updating the number of keys on the left node
-    // node_set_key_amt(fullNode, t -(t/2) -1);
-
-    // for (int j = node_get_key_amt(nonFullNode); j > i; j--) {
-
-    // }
-
-
-    // void *key = node_get_key(fullNode, )
-    // node_set_key_val(nonFullNode,  );
-    
-    // // Increase amount of keys in nonFullNode by 1
-    // node_set_key_amt(nonFullNode, node_get_key_amt(nonFullNode) + 1);
-}
-
-void bt_insert_nonfull() {
-
-}
-
 void bt_insert(BT *bt, int key, int val) {
-
-    // Node *node = bt->root;
-
-    // // Root node is full
-    // if (node_get_key_amt(node) == bt->t -1) {
-    //     Node *newNode = node_create(bt->t, false, 0);
-    //     bt->root = newNode;
-    //     node_set_nodePos(node, 1);
-    //     node_set_child(newNode, node, 0);
-    //     bt_split_child(bt->t, 0, newNode, node);
-    //     bt_insert_nonfull(newNode, key, val);
-    // }
     
-    // // Root node is not full
-    // else {
-    //     bt_insert_nonfull(node, key, val);
-    // }
+    // To update changed nodes in the file
+    FILE *readableFile = fopen(FILENAME, BINARY_READ);
+    if (!readableFile) return;
+
+    // Stores the position of nodes visited from root to a leaf node
+    Deque *nodeStack = deque_construct(20);
+    if (!nodeStack) {
+        fclose(readableFile);
+        return;
+    }
+
+    // Will start as the root, and finish as a leaf
+    Node *node = NULL;
+    int nodeIdx = 0;
+    int keyIdx = 0;
+
+    // Iterates from root to leaf node
+    while (true) {
+        node = disk_read(readableFile, nodeIdx, bt->t);
+        keyIdx = single_node_search(node, bt->t, key);
+
+        // Key is already in the tree
+        if ((keyIdx < bt->t -1) && (node_get_key(node, keyIdx) == key)) {
+            node_set_key_val(node, key, val, keyIdx);
+            disk_write(bt->binFile, node, bt->t);
+            node_destroy(node);
+            fclose(readableFile);
+            deque_destroy(nodeStack);
+            return;
+        }
+
+        if (is_node_leaf(node)) break;
+
+        nodeIdx = node_get_child_pos(node, keyIdx);
+        deque_push_front(nodeStack, node_get_pos(node));
+        node_destroy(node);
+    }
+
+    // Leaf node is not full
+    if (node_get_key_amt(node) < bt->t - 1) {
+        node_insert(node, key, val);
+        disk_write(bt->binFile, node, bt->t);
+    }
+
+    // Leaf node is full
+    // else node_split(); // To be implemented
+
+    node_destroy(node);
+    deque_destroy(nodeStack);
+    fclose(readableFile);
 }
 
 NodeIdxTuple *bt_search(BT *bt, int key) {
@@ -124,7 +120,7 @@ void bt_print(BT *bt) {
     FILE *file = fopen(FILENAME, BINARY_READ);
     if (!file) return;
     
-    Deque *queue = deque_construct();
+    Deque *queue = deque_construct(50);
     deque_push_back(queue, 0);
 
     while (deque_get_size(queue) > 0) {

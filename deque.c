@@ -2,7 +2,7 @@
 #include <stdio.h>
 #include "deque.h"
 
-struct Deque{
+struct Deque {
     int *arr;
     int start;
     int end;
@@ -10,10 +10,17 @@ struct Deque{
     int allocated;
 };
 
-Deque *deque_construct(){
+Deque *deque_construct(int initialSize) {
     Deque *d = (Deque *)calloc(1, sizeof(Deque));
-    d->arr = (int *)calloc(10, sizeof(int));
-    d->allocated = 10;
+    if(!d) return NULL;
+
+    d->arr = (int *)calloc(initialSize, sizeof(int));
+    if (!d->arr) {
+        free(d);
+        return NULL;
+    }
+
+    d->allocated = initialSize;
     d->start = 0;
     d->end = 0;
     d->size = 0;
